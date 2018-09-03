@@ -1,0 +1,111 @@
+* Assignment
+This repository contains the code for the python introduction lab. The
+purpose is to have a fairly simple python assignment that introduces
+the basic features and tools of python
+
+In the repository are two plain text files with lots of words. Your
+assignment is to create a python 2 program which:
+- takes as input the name of an input file and output file
+- example
+
+=$ python wordCount.py input.txt output.txt=
+- keeps track of the total the number of times each word occurs in the text file 
+- excluding white space and punctuation
+- is case-insensitive
+- print out to the output file (overwriting if it exists) the list of
+  words sorted in descending order with their respective totals
+  separated by a space, one word per line
+
+To test your program we provide wordCountTest.py and two key
+files. This test program takes your output file and notes any
+differences with the key file. An example use is:
+
+=$ python wordCountTest.py declaration.txt myOutput.txt declarationKey.txt=
+
+The re regular expression library and python dictionaries should be
+used in your program. 
+
+Note that there are two major dialects of Python.  Python 3.0 is
+incompatible with 2.7.   As a result, Python 2.7 remains popular.  All
+of our examples are in 2.7.  We (mildly) encourage students to use 2.7
+for their assignments. 
+
+* wordCount.py
+A python program that counts the occurences of each word in a given file.
+The word counts are case insensitive, and ignore punctuation.
+
+** Usage
+#+BEGIN_SRC sh
+$ python3 wordCount.py <input_file> <output_file>
+#+END_SRC
+
+The counts of each word will be written to =<output_file>= in alphabetical order.
+Ex.
+#+BEGIN_SRC
+a	16
+abdicated	1
+abolish	1
+abolishing	3
+absolute	3
+absolved	1
+abuses	1
+...
+#+END_SRC
+
+** How it works
+*** Tokenization
+   The words are read line by line.
+   #+BEGIN_SRC python
+   with open(inputFname, 'r') as inputFile:
+       for line in inputFile:
+       # ...
+   #+END_SRC
+   
+   In order to tokenize the words in the line,
+   whitespace is removed with =line.strip()=.
+   
+   To remove apostrophes and hyphens
+   a regular expression substitution is performed.
+   #+BEGIN_SRC python
+   line = re.sub('\'|-', ' ', line, flags=re.IGNORECASE)
+   #+END_SRC
+   This is used because the regular expression used to split
+   the words in the line doesn't cover the above two characters.
+   
+   The individual words are then split in the line
+   with the =\W= python regular expression.
+   =\W= matches all 'non-word' characters.
+   This is the opposite of =\w= and
+   equivalent to =[^a-zA-Z0-9_]=.
+   [[https://docs.python.org/3/library/re.html][Python3 docs on regex]].
+   #+BEGIN_SRC python
+   words = re.split('[\W]', line) # [\W] might solve the punctuation
+   #+END_SRC
+   
+*** Counting them up
+   Each word in this =words= list in then set to lowercase
+   and then added to a dictionary mapping =words -> #occurences=
+   (the dictionary's name is =score=).
+   If the word is already in the dictionary,
+   its number of occurences is incremented.
+   #+BEGIN_SRC python
+    for word in words:
+	if word == '': #in the case that the regex split results in an empty string.
+	    continue
+	if word.lower() in score:
+	    score[word.lower()] += 1
+	else:
+	    score[word.lower()] = 1
+   #+END_SRC
+
+*** Writing the output
+    The results of the above operations are written
+    to the file specified by the user.
+    =sorted()= is called
+    on the dict of scores to arrange them in alphabetical oreder.
+    #+BEGIN_SRC python
+    with open(outputFname, 'w') as outputFile:
+	for word in sorted(score):
+	    outputFile.write("%s\t%d\n" % (word, score[word]))
+    #+END_SRC
+    
