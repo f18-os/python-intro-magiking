@@ -18,7 +18,7 @@ if not os.path.exists(inputFname):
     exit()
 
 # words dictionary
-score = {}
+count = {}
 
 # open input file and read. Insert words into dictionary line by line
 with open(inputFname, 'r') as inputFile:
@@ -27,18 +27,16 @@ with open(inputFname, 'r') as inputFile:
         # print("As read : %s" % line)
         line = line.strip()
         # print("after line.strip(): %s" % line)
-        line = re.sub('\'|-', ' ', line, flags=re.IGNORECASE)
-        # print("after regex sub: %s" % line)
-        words = re.split('[\W]', line) # [\W] might solve the punctuation
+        words = re.split('[\W]', line)
         for word in words:
             if word == '':
                 continue
-            if word.lower() in score: # try a default dict
-                score[word.lower()] += 1
+            if word.lower() in count: # try a default dict
+                count[word.lower()] += 1
             else:
-                score[word.lower()] = 1
+                count[word.lower()] = 1
 
 # write dictionary to output file
 with open(outputFname, 'w') as outputFile:
-    for word in sorted(score):
-        outputFile.write("%s\t%d\n" % (word, score[word]))
+    for word in sorted(count):
+        outputFile.write("%s\t%d\n" % (word, count[word]))
