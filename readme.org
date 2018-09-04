@@ -34,6 +34,25 @@ for their assignments.
 A python program that counts the occurences of each word in a given file.
 The word counts are case insensitive, and ignore punctuation.
 
+Test with 
+#+BEGIN_SRC sh
+$ make test
+#+END_SRC
+** Sample test output
+#+BEGIN_SRC sh
+$ make test
+echo 'Testing wordCount.py'
+Testing wordCount.py
+echo 'speech...'
+speech...
+python3 wordCountTest.py speech.txt speechOut.txt speechKey.txt
+Passed!
+echo 'declaration...'
+declaration...
+python3 wordCountTest.py declaration.txt declarationOut.txt declarationKey.txt
+Passed!
+#+END_SRC
+
 ** Usage
 #+BEGIN_SRC sh
 $ python3 wordCount.py <input_file> <output_file>
@@ -102,3 +121,63 @@ abuses	1
 	    outputFile.write("%s\t%d\n" % (word, count[word]))
     #+END_SRC
     
+* coolerWordCount.py
+  Basically the super pythonic version of wordCount.py.
+  Separate becuase I don't want you guys to think I was using too much "magic"
+  and missing the point.
+
+  Test with 
+  #+BEGIN_SRC sh
+  $ make cool-test
+  #+END_SRC
+
+** Sample test output
+   #+BEGIN_SRC sh
+   $ make cool-test
+   echo 'Testing coolerWordCount.py'
+   Testing coolerWordCount.py
+   echo 'speech...'
+   speech...
+   python3 coolerWordCountTest.py speech.txt speechOutCool.txt speechKey.txt
+   Passed!
+   echo 'declaration...'
+   declaration...
+   python3 coolerWordCountTest.py declaration.txt declarationOutCool.txt declarationKey.txt
+   Passed!
+   #+END_SRC
+
+** Tokenization
+   *One* line this time,
+   using a better function called =re.findall=.
+   Kindof the inverse of =re.split=,
+   it returns a list of all of the matching patterns
+   rather than splitting on the pattern.
+   ='\w+'= mathches any string of 'word characters'
+   of length 1 or more.
+
+   #+BEGIN_SRC python
+   with open(inputFname, 'r') as inputFile:
+       words = re.findall('\w+', inputFile.read().lower())
+   #+END_SRC
+
+   The whole file is read at once rather than line by line,
+   and =lower()= is only called right after reading.
+   
+** Counting
+   Done using a special kind of dictionary called a =Counter=.
+   From [[https://doc.python.org/3.7/collections.html][collections]].
+   It is made especially for 'tallying' things up,
+   and providing an extra set of operations on that tally.
+   All of the dictionary functions still apply to the counter.
+  
+** Writing output
+   Just the same as in =wordCount.py=,
+   because Counters are pretty much dictionaries.
+
+   #+BEGIN_SRC python
+   # write dictionary to output file
+   with open(outputFname, 'w') as outputFile:
+       for word in sorted(count):
+	   outputFile.write("%s\t%d\n" % (word, count[word]))
+   #+END_SRC
+   
