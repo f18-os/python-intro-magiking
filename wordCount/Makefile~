@@ -1,0 +1,9 @@
+test:
+	echo 'Testing wordCount.py'
+	echo 'speech...'
+	python3 coolerWordCountTest.py speech.txt speechOutCool.txt speechKey.txt 
+	echo 'declaration...'
+	python3 coolerWordCountTest.py declaration.txt declarationOutCool.txt declarationKey.txt 
+
+cool-test:
+	python3 coolerWordCountTest.py speech.txt speechOutCool.txt speechKey.txt ; python3 coolerWordCountTest.py declaration.txt declarationOutCool.txt declarationKey.txt 

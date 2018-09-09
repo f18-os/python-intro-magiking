@@ -25,7 +25,9 @@ count = Counter()
 with open(inputFname, 'r') as inputFile:
     words = re.findall('\w+', inputFile.read().lower())
     for word in words:
-        count[word.lower()] += 1
+        count[word] += 1
+
+print(count)
 
 # write dictionary to output file
 with open(outputFname, 'w') as outputFile:
