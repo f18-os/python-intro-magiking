@@ -1,0 +1,5 @@
+* Shelly (The shell)
+  I've been using =os.fork()= the whole time,
+  but what happens if I just use exec?
+  
+  What do the C examples look like?

@@ -1,0 +1,5 @@
+* wordCount
+  python intro lab
+
+* shell
+  python shell lab
