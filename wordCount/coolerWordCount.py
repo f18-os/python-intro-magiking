@@ -27,8 +27,6 @@ with open(inputFname, 'r') as inputFile:
     for word in words:
         count[word] += 1
 
-print(count)
-
 # write dictionary to output file
 with open(outputFname, 'w') as outputFile:
     for word in sorted(count):
