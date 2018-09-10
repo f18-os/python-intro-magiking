@@ -1,0 +1,80 @@
+* Shelly (The little python shell)
+  Shelly is the little python shell that could!
+  
+** Usage
+   Shelly supports I/O redirection via
+   the =<= and =>= operators.
+
+   You can use Shelly to call executable programs found in your =$PATH=.
+   #+BEGIN_SRC sh
+   $ python3 ./shelly.py
+   shelly $ ...
+   #+END_SRC
+
+** How it works
+   In general,
+   like you would expect a shell to work.
+   1. Ask for a command
+      1.a. Evaluate (is that the right word?) the command
+   2. Execute the command!
+   3. Do it again.   
+
+*** shelly.read_()
+    The =read_()= function is the bread and butter of this program.
+    It gets called in an infinite loop.
+    It handles parsing the user's input and
+    making the appropriate call to =shelly.exec_()=.
+    
+    read_() uses a nice one-liner to
+    create a prompt for the user and tokenize their input.
+    
+    A slightly wordy while loop checks the list of tokens (=args=)
+    for =<= and =>=.
+    It then picks out the appropriate new I/O file names to pass to =exec_()=.
+
+*** shelly.exec_(args=[], in_redir=None, out_redir=None)
+    This is the bit that actually asks the OS to run our command
+    by forking a child process and calling =os.execve()=
+    
+    This method takes a list of args to be passed to =os.execve()=.
+    The =in_redir= and =out_redir= arguments are
+    filenames that will be the new I/O for the command.
+    If either is non-None (that sounds funny)
+    their respective file descriptor is closed and
+    the new file is opened in it's place.
+    The following idiom for this action is used:
+    
+    #+BEGIN_SRC python
+    # Ex. change the stdin file descriptor w/o os.dup2()
+    if in_redir:
+	os.close(0)                 # redirect child's stdout
+	sys.stdin = open(in_redir, "r")
+	fd = sys.stdin.fileno() # os.open(in_redir, os.O_CREAT)
+	os.set_inheritable(fd, True)
+	os.write(2, ("Child: opened fd=%d for reading\n" % fd).encode())
+    #+END_SRC
+    
+    There is a shorter way of saying this using
+    [[https://docs.python.org/3.5/library/os.html#os.dup2][os.dup2(fd, fd2, inheritable=True)]]
+
+    #+BEGIN_SRC python
+    # Ex. change the stdin file descriptor with os.dup2()
+    if in_redir:
+	os.dup2(os.open(in_redir, os.O_RDONLY), 0)
+	fd = sys.stdin.fileno()
+	os.write(2, ("Child: opened fd=%d for reading\n" % fd).encode())
+    #+END_SRC
+    
+    This may or may not be better/more pythonic because
+    you don't get to use python's nice =open("filename", mode)= function but,
+    =os.dup2= does set the fd to =inheritable= by default and,
+    it will automatically close =fd= if necessary.
+    The big thing is remembering to OR together the right flags.
+    I'm not going to use it here
+    (at least as of right now)
+    for the sake of clarity.
+    
+    For execution,
+    the program tries execution with every directory listed in 
+    =os.environ['PATH']=, in the order they are listed.
+    Nothing crazy here.

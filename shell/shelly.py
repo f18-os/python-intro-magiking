@@ -11,10 +11,42 @@ def read_():
     args = re.split(' ', input('shelly $ '))
     if args[0] == 'exit':
         sys.exit(0)
-    return args
 
+    print(args)
 
-def exec_(args=[]):
+    # check for redirection
+    in_ = None
+    out = None
+    new_in = None
+    new_out = None
+    try:
+        index = 0
+        while index < len(args):
+            arg = args[index]
+            if arg == '<':
+                in_ = index
+                new_in = args[index + 1]
+                del args[index]
+                del args[index]
+            elif arg == '>':
+                out = index
+                new_out = args[index + 1]
+                del args[index]
+                del args[index]
+            else:
+                index += 1
+        if in_:
+            print("new_in: %s at index: %d " % (new_in, in_))
+        if out:
+            print("new_out: %s at index: %d " % (new_out, out))
+        # TODO: assuming that input comes before output 
+        print(args)
+        exec_(args=args, in_redir=new_in, out_redir=new_out)
+    except IndexError:
+        print("Your redirection looks a little funny, try again")
+    
+
+def exec_(args=[], in_redir=None, out_redir=None):
     os.write(1, ("Command read...About to fork (pid:%d)\n" % pid).encode())
 
     rc = os.fork()
@@ -26,6 +58,18 @@ def exec_(args=[]):
     elif rc == 0:                   # child
         os.write(1, ("Child: My pid=%d.  Parent's pid=%d\n" % 
                     (os.getpid(), pid)).encode())
+        if in_redir:
+            os.close(0)                 # redirect child's stdout
+            sys.stdin = open(in_redir, "r")
+            fd = sys.stdin.fileno() # os.open(in_redir, os.O_CREAT)
+            os.set_inheritable(fd, True)
+            os.write(2, ("Child: opened fd=%d for reading\n" % fd).encode())
+        if out_redir:
+            os.close(1)                 # redirect child's stdout
+            sys.stdout = open(out_redir, "w")
+            fd = sys.stdout.fileno() # os.open(out_redir, os.O_CREAT)
+            os.set_inheritable(fd, True)
+            os.write(2, ("Child: opened fd=%d for writing\n" % fd).encode())
         for dir in re.split(":", os.environ['PATH']): # try each directory in the path
             program = "%s/%s" % (dir, args[0])
             os.write(1, ("Child:  ...trying to exec %s\n" % program).encode())
@@ -46,5 +90,5 @@ def exec_(args=[]):
 
 
 while True:
-    exec_(args=read_())
+    read_()
     

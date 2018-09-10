@@ -3,3 +3,14 @@
   but what happens if I just use exec?
   
   What do the C examples look like?
+  
+** for file redirection.
+   os.close(fd)?
+   - os.close(0) for stdin
+   - os.close(1) for stdout
+     
+   reopen the fd's with the new I/O
+   
+   Let's try =os.dup2(fd, fd2, inheritable=True)=
+   - duplicate fd to fd2, closing the latter if first neccessary
+   
