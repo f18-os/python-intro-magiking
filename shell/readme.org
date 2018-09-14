@@ -78,3 +78,59 @@
     the program tries execution with every directory listed in 
     =os.environ['PATH']=, in the order they are listed.
     Nothing crazy here.
+
+* Bad file descriptor error
+  My code has two functions, read_() and exec_()
+  read_() handles getting input from the user, and exec_() makes the call to =os.execve()=.
+  
+  I had a working version earlier with '<' and '>' I/O redirection 
+  (see commit =692d031 Add '<' and '>' I/O redirection=)
+  that had exec_() take filepaths rather than file descriptors.
+  The child process was the one that would open the file and rearange it's fds.
+  
+  In this latest commit (=5f8d8f1 Changed run_ to pass fds to exec_=)
+  I changed read_() (I wrote run_() by mistake in my commit message, sorry)
+  to open the new I/O filepaths as the parent process, and then just pass the fd
+  to exec_() for the child to just change it's fd. This way, when I start making pipes,
+  I can create the pipe in the parent, and pass the appropriate fds for the pipes to the children.
+  
+  The files are being opened by the parent and set to inheritable from lines 43-52
+  and the fds are being changed by the child from lines 79-92.
+  
+  After changing this, I started getting "Bad File Descriptor" errors from the programs I was execing.
+
+  Test using =new_in_fd = os.open(new_in_fpath, os.O_RDONLY)= for opening the file.
+  #+BEGIN_SRC sh
+mk@nyarlathotep ~/src/school/operating-systems/python-warmup/shell $ python3 ./shelly.py
+shelly $ wc < shelly.py
+fpath: shelly.py at index: 1 fd: 3           # <--- the file was opened and I got a new fd line_no: 43-47
+['wc']
+Command read...About to fork (pid:25475)
+Parent: My pid=25475.  Child's pid=25486
+Child: My pid=25486.  Parent's pid=25475
+Child: given in_fd: 3                        # <--- same fd made it to the child line_no: 79-85
+Child: using fd=0 for reading                # <--- sys.stdin.fileno() returns 0
+Child:  ...trying to exec /opt/wzb-utils/wc
+Child:  ...trying to exec /home/mk/bin/wc
+Child:  ...trying to exec /usr/local/bin/wc
+Child:  ...trying to exec /usr/bin/wc
+wc: 'standard input': Bad file descriptor    # <--- wc doesn't like the stdin filedescriptor
+0 0 0
+wc: -: Bad file descriptor
+Parent: Child 25486 terminated with exit code 256
+shelly $ exit
+  #+END_SRC
+  
+  I tried opening the files differently (lines 45 and 50, presently commented out)
+  using =new_in_fd = open(new_in_fpath, 'r').fileno()=, and got a different error below.
+  
+  #+BEGIN_SRC sh
+mk@nyarlathotep ~/src/school/operating-systems/python-warmup/shell $ python3 ./shelly.py
+shelly $ wc < shelly.py
+Traceback (most recent call last):
+  File "./shelly.py", line 114, in <module>
+    read_()
+  File "./shelly.py", line 46, in read_
+    os.set_inheritable(new_in_fd, True)
+OSError: [Errno 9] Bad file descriptor
+  #+END_SRC
