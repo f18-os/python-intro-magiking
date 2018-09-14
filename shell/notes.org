@@ -13,4 +13,51 @@
    
    Let's try =os.dup2(fd, fd2, inheritable=True)=
    - duplicate fd to fd2, closing the latter if first neccessary
+   - hey, we actually need this for pipes...
+     
+** pipes
+   A virtual, blocking buffer that oen process writes to, and another reads from.
+   #+BEGIN_SRC
+   p1 --'stdout'--> | input fd | PIPE | out fd | <--'stdin'--- p2
+   #+END_SRC
+ 
+   The Pipe *isn't* another process,
+   it is an abstraction of the OS.
    
+   If we have =$ p1 | p2=,
+   we need to 
+   1. Fork 2 children
+   2. create a pipe for our children
+      1. Make the new pipe fd's inheritable
+   3. for each child (2018-09-11 one note)
+      1. =os.close(0/1)=
+      2. =os.dup(pipefds(0/1))= (note: pipefds is the arr of fd's from pipe()
+      3. =os.close(fd)=
+
+      
+   Possible refactoring for =exec_()=
+   Change =in_redir= and =out_redir= to =in_fd= and =out_fd= respectively.
+   Both default to =None= and should be ints.
+   This makes more sense for pipes,
+   and also works for '>' and '<'.
+   Now, exec_() only needs to:
+   1. os.close(0/1)
+   2. os.dup(in_fd/out_fd)
+   3. os.close(in_fd/out_fd)
+      
+*** os.pipe
+    Create a pipe. Return a pair of file descriptors (r, w) usable for
+    reading and writing, respectively. The new file descriptor is
+    non-inheritable.
+    
+    Availability: Unix, Windows.
+    
+    #+BEGIN_SRC python
+    #ex.
+    import os
+    pipefds = os.pipe()
+    print(pipefds[0].fileno()) # read fd
+    print(pipefds[1].fileno()) # write fd
+    # NOTE: these fd's are non-inheritable by default
+    #+END_SRC
+ 
