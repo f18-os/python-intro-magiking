@@ -45,11 +45,13 @@ def read_():
             # new_in_fd = open(new_in_fpath, 'r').fileno()
             os.set_inheritable(new_in_fd, True)
             print("fpath: %s at index: %d fd: %d" % (new_in_fpath, in_, new_in_fd))
+            # print("fd: %d inheritable? %s" % (new_in_fd, os.get_inheritable(new_in_fd)))
         if out:
-            new_out_fd = os.open(new_out_fpath, os.O_WRONLY)
+            new_out_fd = os.open(new_out_fpath, os.O_WRONLY | os.O_CREAT)
             # new_out_fd = open(new_out_fpath, 'w').fileno()
             os.set_inheritable(new_out_fd, True)
             print("fpath: %s at index: %d fd: %d" % (new_out_fpath, out, new_out_fd))
+            # print("fd: %d is %s" % (new_out_fd, os.get_inheritable(new_out_fd)))
         print(args)
         exec_(args=args, in_fd=new_in_fd, out_fd=new_out_fd)
     except IndexError:
@@ -79,16 +81,16 @@ def exec_(args=[], in_fd=None, out_fd=None):
         if in_fd:
             os.write(2, ("Child: given in_fd: %d\n" % in_fd).encode())
             os.close(0)
-            os.dup(in_fd)
+            fd = os.dup(in_fd)
+            os.set_inheritable(fd, True)
             os.close(in_fd)
-            fd = sys.stdin.fileno()
             os.write(2, ("Child: using fd=%d for reading\n" % fd).encode())
         if out_fd:
             os.write(2, ("Child: given out_fd: %d\n" % out_fd).encode())
             os.close(1)
-            os.dup(out_fd)
+            fd = os.dup(out_fd)
+            os.set_inheritable(fd, True)
             os.close(out_fd)
-            fd = sys.stdout.fileno()
             os.write(2, ("Child: using fd=%d for writing\n" % fd).encode())
 
         for dir in re.split(":", os.environ['PATH']): # try each directory in the path
