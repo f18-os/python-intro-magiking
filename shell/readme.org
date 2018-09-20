@@ -1,10 +1,9 @@
 * Shelly (The little python shell)
-  Shelly is the little python shell that could!
+  Shelly is a quaint little python shell.
+  It has support for pipes (any number),  and '<' and '>' file redirection.
+  If the 'PS1' environment variable is set, shelly will use it for the prompt.
   
 ** Usage
-   Shelly supports I/O redirection via
-   the =<= and =>= operators.
-
    You can use Shelly to call executable programs found in your =$PATH=.
    #+BEGIN_SRC sh
    $ python3 ./shelly.py
@@ -18,6 +17,8 @@
       1.a. Evaluate (is that the right word?) the command
    2. Execute the command!
    3. Do it again.   
+      
+   It uses a global list (=close_these_fds=) to track the opened pipefds.
 
 *** shelly.read_()
     The =read_()= function is the bread and butter of this program.
@@ -25,14 +26,41 @@
     It handles parsing the user's input and
     making the appropriate call to =shelly.exec_()=.
     
-    read_() uses a nice one-liner to
-    create a prompt for the user and tokenize their input.
+    this function checks for special commands:
+    - =exit= - terminate the shell
+      
+    If there is a pipe in the command,
+    the input is split along the pipes,
+    and a call to =os.pipe()= is made for each pipe in the input.
+    
+    The input(previously split on pipes or not)
+    is then split along whitespace and passed to =prep_subprocess()=.
+    A list of Process objects is created,
+    and then a call to =exec_()= is made for each one.
+      
+*** Process.py
+    *Process* objects.
+    A way to store the args, input file descriptor, and output file descriptor
+    of a command that is issued by the user.
+    
+    If I had kept track of the active processes,
+    this class could have included the pid of the process,
+    and its state.
+    
+
+*** shelly.prep_subprocesss(args=[], pipe_read=None, pipe_write=None)
+    
+    This should probably be two methods.
+    It creates a process object
+    and sets its args(given to execve) and file_descriptors.
     
     A slightly wordy while loop checks the list of tokens (=args=)
-    for =<= and =>=.
-    It then picks out the appropriate new I/O file names to pass to =exec_()=.
+    for =<= and =>=. If the process is being piped to/from
+    an exception will be raised for the multiple redirections.
+    If the =>= redirection is legal, a fd will be opened for the file.
 
-*** shelly.exec_(args=[], in_redir=None, out_redir=None)
+
+*** shelly.exec_(args=[], in_fd=None, out_fd=None, parent_wait=True)
     This is the bit that actually asks the OS to run our command
     by forking a child process and calling =os.execve()=
     
@@ -46,12 +74,11 @@
     
     #+BEGIN_SRC python
     # Ex. change the stdin file descriptor w/o os.dup2()
-    if in_redir:
-	os.close(0)                 # redirect child's stdout
-	sys.stdin = open(in_redir, "r")
-	fd = sys.stdin.fileno() # os.open(in_redir, os.O_CREAT)
+    if in_fd:
+	os.close(0)
+	fd = os.dup(in_fd)
 	os.set_inheritable(fd, True)
-	os.write(2, ("Child: opened fd=%d for reading\n" % fd).encode())
+	os.close(in_fd)
     #+END_SRC
     
     There is a shorter way of saying this using
@@ -59,78 +86,35 @@
 
     #+BEGIN_SRC python
     # Ex. change the stdin file descriptor with os.dup2()
-    if in_redir:
-	os.dup2(os.open(in_redir, os.O_RDONLY), 0)
-	fd = sys.stdin.fileno()
-	os.write(2, ("Child: opened fd=%d for reading\n" % fd).encode())
+    if in_fd:
+	fd = os.dup2(0, in_fd, inheritable=True)
+        os.close(in_fd)
     #+END_SRC
     
-    This may or may not be better/more pythonic because
-    you don't get to use python's nice =open("filename", mode)= function but,
-    =os.dup2= does set the fd to =inheritable= by default and,
-    it will automatically close =fd= if necessary.
-    The big thing is remembering to OR together the right flags.
-    I'm not going to use it here
-    (at least as of right now)
-    for the sake of clarity.
+    Avoided for the sake of clarity in what I was doing.
     
     For execution,
     the program tries execution with every directory listed in 
     =os.environ['PATH']=, in the order they are listed.
     Nothing crazy here.
+    
+    The parent closes the fds that were passed to =exec_()=,
+    I need to make sure that this is closing the pipefds too.
+    It should be, but for now I'm still calling =paranoid_pipefd_close()=.
 
-* Bad file descriptor error
-  My code has two functions, read_() and exec_()
-  read_() handles getting input from the user, and exec_() makes the call to =os.execve()=.
-  
-  I had a working version earlier with '<' and '>' I/O redirection 
-  (see commit =692d031 Add '<' and '>' I/O redirection=)
-  that had exec_() take filepaths rather than file descriptors.
-  The child process was the one that would open the file and rearange it's fds.
-  
-  In this latest commit (=5f8d8f1 Changed run_ to pass fds to exec_=)
-  I changed read_() (I wrote run_() by mistake in my commit message, sorry)
-  to open the new I/O filepaths as the parent process, and then just pass the fd
-  to exec_() for the child to just change it's fd. This way, when I start making pipes,
-  I can create the pipe in the parent, and pass the appropriate fds for the pipes to the children.
-  
-  The files are being opened by the parent and set to inheritable from lines 43-52
-  and the fds are being changed by the child from lines 79-92.
-  
-  After changing this, I started getting "Bad File Descriptor" errors from the programs I was execing.
+    If =parent_wait= is True,
+    then the parent will wait for the child that it just forked
+    to terminate.
+    
+    #+BEGIN_SRC python
+    while parent_wait:
+	try:
+	    childPidCode = os.wait()
+	    if childPidCode[0] == rc:
+		break
+	except ChildProcessError:
+	    os.write(2, ("child processes already terminated").encode())
+	    break
+	    pass
+    #+END_SRC
 
-  Test using =new_in_fd = os.open(new_in_fpath, os.O_RDONLY)= for opening the file.
-  #+BEGIN_SRC sh
-mk@nyarlathotep ~/src/school/operating-systems/python-warmup/shell $ python3 ./shelly.py
-shelly $ wc < shelly.py
-fpath: shelly.py at index: 1 fd: 3           # <--- the file was opened and I got a new fd line_no: 43-47
-['wc']
-Command read...About to fork (pid:25475)
-Parent: My pid=25475.  Child's pid=25486
-Child: My pid=25486.  Parent's pid=25475
-Child: given in_fd: 3                        # <--- same fd made it to the child line_no: 79-85
-Child: using fd=0 for reading                # <--- sys.stdin.fileno() returns 0
-Child:  ...trying to exec /opt/wzb-utils/wc
-Child:  ...trying to exec /home/mk/bin/wc
-Child:  ...trying to exec /usr/local/bin/wc
-Child:  ...trying to exec /usr/bin/wc
-wc: 'standard input': Bad file descriptor    # <--- wc doesn't like the stdin filedescriptor
-0 0 0
-wc: -: Bad file descriptor
-Parent: Child 25486 terminated with exit code 256
-shelly $ exit
-  #+END_SRC
-  
-  I tried opening the files differently (lines 45 and 50, presently commented out)
-  using =new_in_fd = open(new_in_fpath, 'r').fileno()=, and got a different error below.
-  
-  #+BEGIN_SRC sh
-mk@nyarlathotep ~/src/school/operating-systems/python-warmup/shell $ python3 ./shelly.py
-shelly $ wc < shelly.py
-Traceback (most recent call last):
-  File "./shelly.py", line 114, in <module>
-    read_()
-  File "./shelly.py", line 46, in read_
-    os.set_inheritable(new_in_fd, True)
-OSError: [Errno 9] Bad file descriptor
-  #+END_SRC
