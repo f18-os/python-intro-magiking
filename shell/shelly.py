@@ -42,7 +42,7 @@ def read_():
                for f in pipefds:
                    os.set_inheritable(f, True)
                    close_these_fds.append(f)
-               print("pipefds: %s, %s" % (pipefds[0], pipefds[1])) # do some more testing to be sure, but take this out
+               # print("pipefds: %s, %s" % (pipefds[0], pipefds[1])) # do some more testing to be sure, but take this out
                pwrite = pipefds[1]
             args = re.split(' ', str.strip(command))
             if args[0] == 'exit':
@@ -184,7 +184,7 @@ def exec_(args=[], in_fd=None, out_fd=None, parent_wait=True):
                 if childPidCode[0] == rc:
                     break
             except ChildProcessError:
-                os.write(2, ("child processes already terminated").encode())
+                # os.write(2, ("child processes already terminated").encode())
                 break
                 pass
             
